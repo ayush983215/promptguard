@@ -1,0 +1,33 @@
+# PromptGuard policy: what to do when a detector fires.
+# Actions, weakest to strongest:  allow < warn < redact < block
+# The final decision for a prompt is the STRONGEST action among its findings.
+# The file is validated at startup: an unknown type or action stops the service
+# (fail closed) instead of silently falling back to something weaker.
+
+default_action: warn          # used only for types not listed below
+max_prompt_chars: 100000      # larger prompts are blocked, not partially scanned
+
+# Hostnames ending in these suffixes are treated as internal.
+internal_suffixes: [internal, corp, local, lan, intranet]
+
+actions:
+  # Credentials: never let these leave. Always block.
+  private_key:      block
+  aws_access_key:   block
+  aws_secret_key:   block
+  github_token:     block
+  slack_token:      block
+  jwt:              block
+  encoded_secret:   block     # a base64 blob that decodes to one of the above
+  credit_card:      block     # Luhn-valid card number (PCI data)
+
+  # Personal / internal data: send it, but with the value removed.
+  email:            redact
+  phone:            redact
+  internal_ip:      redact
+  internal_hostname: redact
+  high_entropy:     redact    # random-looking string, probably a secret
+
+  # Ambiguous: could be a mobile number or a harmless ID. Warn the user;
+  # the optional agent may tighten this, never loosen it.
+  possible_phone:   warn
